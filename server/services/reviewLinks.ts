@@ -2,10 +2,12 @@ import { createEmployeeLink, getAllEmployeeLinks, registerClick } from "../utils
 import { customValuesService } from "./customValues";
 import { EmployeeLink, EmployeeLinkResponse } from "@shared/schema";
 
-const BASE_REDIRECT_DOMAIN = process.env.BASE_REDIRECT_DOMAIN || 
-  process.env.REPLIT_DEV_DOMAIN 
-    ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
-    : 'http://localhost:5000';
+const BASE_REDIRECT_DOMAIN = 
+  (process.env.BASE_REDIRECT_DOMAIN && process.env.BASE_REDIRECT_DOMAIN !== 'undefined') 
+    ? process.env.BASE_REDIRECT_DOMAIN
+    : (process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}` 
+        : 'http://localhost:5000');
 
 export async function createLinkForEmployee(data: {
   accessToken: string;

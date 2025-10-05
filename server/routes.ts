@@ -254,6 +254,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error creating employee link:", error);
+      
+      if (error instanceof Error && error.name === "ZodError") {
+        return res.status(400).json({ 
+          error: "Validation failed",
+          details: error.message
+        });
+      }
+      
       res.status(500).json({ 
         error: "Failed to create employee link",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -292,8 +300,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Track the click
-      trackEmployeeClick(id);
-      console.log(`Click tracked for employee: ${link.employeeName} (${link.clicks + 1} total clicks)`);
+      const updatedLink = trackEmployeeClick(id);
+      console.log(`Click tracked for employee: ${link.employeeName} (${updatedLink?.clicks || link.clicks} total clicks)`);
 
       // Redirect to the destination
       res.redirect(link.destination);

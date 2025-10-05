@@ -17,6 +17,15 @@ Successfully implemented and tested end-to-end OAuth2 flow with real GoHighLevel
 - Tested with GHL agency subaccount (iLeveX) - confirmed multi-location support
 - All TypeScript errors resolved, schemas validated with Zod
 
+**Etapa 2B: ✅ COMPLETED (October 5, 2025)**
+
+Employee Review Links functionality implemented:
+- Create custom review links for individual employees
+- Each link derives from main Google Review link stored in GHL Custom Values
+- In-memory storage with click tracking
+- Automatic redirection with analytics
+- REST API with validation and error handling
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
@@ -56,6 +65,11 @@ Preferred communication style: Simple, everyday language.
 - `/auth/callback` - Handles OAuth2 callback and token exchange
 - `/me` - Returns authenticated user account information
 - `/auth/disconnect` - Revokes authentication and clears stored tokens
+- `/reviews/set-link` - Save Google Review Link to GHL Custom Values
+- `/reviews/get-link` - Retrieve Google Review Link from GHL Custom Values
+- `/employee-links/create` - Create personalized review link for employee
+- `/employee-links/list` - List all employee review links with click tracking
+- `/employee-links/go/:id` - Redirect to Google Review and track click
 
 **Core Services:**
 - **GHLService** (`server/services/ghl.ts`): Handles all GoHighLevel API interactions including:
@@ -63,16 +77,25 @@ Preferred communication style: Simple, everyday language.
   - Authorization code to token exchange
   - Token refresh logic
   - Account information retrieval
+- **CustomValuesService** (`server/services/customValues.ts`): Manages GHL Custom Values for storing configuration:
+  - Get/create/update custom values via GHL API
+  - Google Review Link storage and retrieval
+- **ReviewLinksService** (`server/services/reviewLinks.ts`): Manages employee review links:
+  - Creates personalized review links derived from main Google Review link
+  - Tracks clicks and analytics per employee
+  - Generates short URLs for easy sharing
 
 **Storage Layer:**
 - **IStorage Interface**: Abstract storage interface for flexibility
 - **MemStorage Implementation**: In-memory token and account storage for MVP
+- **MemoryDB** (`server/utils/db.ts`): In-memory employee links storage with click tracking
 - Token management utilities providing save, retrieve, validate, and delete operations
 - Designed to be easily swapped with database persistence
 
 **Data Models (Shared Schemas):**
 - `GhlToken`: OAuth token data including access_token, refresh_token, expiry, and location/company IDs
 - `GhlAccount`: Account metadata including name, address, timezone, country
+- `EmployeeLink`: Employee review link with tracking data (id, name, destination, clicks, timestamps)
 - Response schemas for API endpoints with Zod validation
 
 ### Authentication Flow
