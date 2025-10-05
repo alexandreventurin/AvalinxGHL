@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save, CheckCircle } from "lucide-react";
+import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save, CheckCircle, Users, Copy, Eye } from "lucide-react";
 import { useState } from "react";
 
 interface ApiStatus {
@@ -24,6 +24,16 @@ interface AccountData {
   country?: string;
   tokenExpiry: number;
   accessToken: string;
+}
+
+interface EmployeeLink {
+  id: string;
+  employeeName: string;
+  locationId: string;
+  destination: string;
+  clicks: number;
+  createdAt: string;
+  shortUrl: string;
 }
 
 export default function Home() {
@@ -137,6 +147,70 @@ export default function Home() {
       return;
     }
     saveReviewLinkMutation.mutate(reviewLink);
+  };
+
+  const handleTestReviewLink = () => {
+    if (reviewLinkData?.link) {
+      window.open(reviewLinkData.link, '_blank');
+    }
+  };
+
+  // Employee Links state and queries
+  const [employeeName, setEmployeeName] = useState("");
+
+  // Query to get employee links
+  const { data: employeeLinks = [], refetch: refetchEmployeeLinks } = useQuery<EmployeeLink[]>({
+    queryKey: ['/employee-links/list'],
+    enabled: !!accountData?.locationId && !!reviewLinkData?.link,
+    retry: false,
+  });
+
+  // Mutation to create employee link
+  const createEmployeeLinkMutation = useMutation({
+    mutationFn: (name: string) => apiRequest("POST", "/employee-links/create", {
+      employeeName: name,
+      locationId: accountData?.locationId,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/employee-links/list'] });
+      refetchEmployeeLinks();
+      toast({
+        title: "Link Criado",
+        description: "Link de avaliação do funcionário criado com sucesso",
+      });
+      setEmployeeName("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Erro ao Criar Link",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleCreateEmployeeLink = () => {
+    if (!employeeName.trim()) {
+      toast({
+        title: "Nome Inválido",
+        description: "Por favor, insira o nome do funcionário",
+        variant: "destructive",
+      });
+      return;
+    }
+    createEmployeeLinkMutation.mutate(employeeName);
+  };
+
+  const handleCopyLink = (shortUrl: string) => {
+    navigator.clipboard.writeText(shortUrl);
+    toast({
+      title: "Link Copiado",
+      description: "Link copiado para a área de transferência",
+    });
+  };
+
+  const handleTestEmployeeLink = (shortUrl: string) => {
+    window.open(shortUrl, '_blank');
   };
 
   const isConnected = accountData?.connected === true;
@@ -400,15 +474,26 @@ export default function Home() {
                   {reviewLinkData?.link ? (
                     <div className="space-y-3 mb-4">
                       <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
-                        <div className="flex items-start space-x-2 mb-2">
-                          <CheckCircle className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-xs font-semibold text-accent mb-1">✅ Link Salvo com Sucesso!</p>
-                            <p className="text-xs text-muted-foreground mb-2">Seu link está configurado e pronto para uso:</p>
-                            <code className="text-sm font-mono text-foreground bg-background/80 px-3 py-2 rounded block break-all" data-testid="text-current-review-link">
-                              {reviewLinkData.link}
-                            </code>
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-start space-x-2 flex-1">
+                            <CheckCircle className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-xs font-semibold text-accent mb-1">✅ Link Configurado!</p>
+                              <code className="text-xs font-mono text-foreground bg-background/80 px-2 py-1 rounded block break-all" data-testid="text-current-review-link">
+                                {reviewLinkData.link}
+                              </code>
+                            </div>
                           </div>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleTestReviewLink}
+                            className="shrink-0"
+                            data-testid="button-test-review-link"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            Testar
+                          </Button>
                         </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
@@ -436,7 +521,7 @@ export default function Home() {
                       data-testid="button-save-review-link"
                     >
                       <Save className="w-4 h-4 mr-2" />
-                      {saveReviewLinkMutation.isPending ? 'Saving...' : 'Save'}
+                      {saveReviewLinkMutation.isPending ? 'Salvando...' : 'Salvar'}
                     </Button>
                   </div>
                   
@@ -491,6 +576,108 @@ export default function Home() {
                 </div>
               </CardContent>
             </Card>
+
+            {/* Employee Review Links Section */}
+            {reviewLinkData?.link && (
+              <Card className="shadow-xl" data-testid="employee-links-card">
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center space-x-2">
+                      <Users className="w-5 h-5 text-primary" />
+                      <h3 className="text-lg font-semibold">Links de Funcionários</h3>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {employeeLinks.length} {employeeLinks.length === 1 ? 'link' : 'links'}
+                    </Badge>
+                  </div>
+
+                  {/* Create Employee Link Form */}
+                  <div className="bg-muted/30 border border-border rounded-lg p-4 mb-6">
+                    <p className="text-xs font-semibold text-foreground/90 mb-3">Criar Novo Link</p>
+                    <div className="flex items-center space-x-2">
+                      <Input
+                        type="text"
+                        placeholder="Nome do funcionário"
+                        value={employeeName}
+                        onChange={(e) => setEmployeeName(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && handleCreateEmployeeLink()}
+                        className="flex-1"
+                        data-testid="input-employee-name"
+                      />
+                      <Button
+                        onClick={handleCreateEmployeeLink}
+                        disabled={createEmployeeLinkMutation.isPending || !employeeName.trim()}
+                        data-testid="button-create-employee-link"
+                      >
+                        <Users className="w-4 h-4 mr-2" />
+                        {createEmployeeLinkMutation.isPending ? 'Criando...' : 'Criar Link'}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Cada funcionário receberá um link único que redireciona para o Google Review
+                    </p>
+                  </div>
+
+                  {/* Employee Links List */}
+                  {employeeLinks.length > 0 ? (
+                    <div className="space-y-3">
+                      <p className="text-xs font-semibold text-foreground/90">Links Criados:</p>
+                      {employeeLinks.map((link) => (
+                        <div
+                          key={link.id}
+                          className="bg-background border border-border rounded-lg p-4 hover:border-accent/20 transition-colors"
+                          data-testid={`employee-link-${link.id}`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 mb-2">
+                                <p className="text-sm font-semibold text-foreground" data-testid={`employee-name-${link.id}`}>
+                                  {link.employeeName}
+                                </p>
+                                <Badge variant="outline" className="text-xs">
+                                  {link.clicks} {link.clicks === 1 ? 'clique' : 'cliques'}
+                                </Badge>
+                              </div>
+                              <code className="text-xs font-mono text-muted-foreground bg-muted px-2 py-1 rounded block break-all" data-testid={`employee-short-url-${link.id}`}>
+                                {link.shortUrl}
+                              </code>
+                            </div>
+                            <div className="flex items-center space-x-1 shrink-0">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleCopyLink(link.shortUrl)}
+                                data-testid={`button-copy-${link.id}`}
+                              >
+                                <Copy className="w-3 h-3" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleTestEmployeeLink(link.shortUrl)}
+                                data-testid={`button-test-${link.id}`}
+                              >
+                                <Eye className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="w-12 h-12 text-muted-foreground mx-auto mb-3 opacity-50" />
+                      <p className="text-sm text-muted-foreground">
+                        Nenhum link criado ainda
+                      </p>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Crie links personalizados para seus funcionários acima
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            )}
           )}
 
           {/* API Endpoints Info */}
