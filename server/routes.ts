@@ -2,6 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ghlService } from "./services/ghl";
+import { customValuesService } from "./services/customValues";
 import { saveToken, getToken, getAllTokens, deleteToken } from "./utils/tokens";
 import { authCallbackResponseSchema, apiStatusSchema, ghlTokenSchema } from "@shared/schema";
 
@@ -151,6 +152,75 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Disconnect error:", error);
       res.status(500).json({ error: "Failed to disconnect" });
+    }
+  });
+
+  // Save Google Review Link
+  app.post("/reviews/set-link", async (req, res) => {
+    try {
+      const { locationId, link } = req.body;
+
+      if (!locationId || !link) {
+        return res.status(400).json({ error: "locationId and link are required" });
+      }
+
+      const tokenData = await getToken(locationId);
+      if (!tokenData?.access_token) {
+        return res.status(401).json({ error: "GHL connection not found for this location" });
+      }
+
+      const result = await customValuesService.saveGoogleReviewLink(
+        tokenData.access_token,
+        locationId,
+        link
+      );
+
+      res.json({
+        message: "Google Review link saved successfully",
+        result
+      });
+    } catch (error) {
+      console.error("Error saving review link:", error);
+      res.status(500).json({ 
+        error: "Failed to save review link",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  // Get Google Review Link
+  app.get("/reviews/get-link", async (req, res) => {
+    try {
+      const { locationId } = req.query;
+
+      if (!locationId || typeof locationId !== "string") {
+        return res.status(400).json({ error: "locationId query parameter is required" });
+      }
+
+      const tokenData = await getToken(locationId);
+      if (!tokenData?.access_token) {
+        return res.status(401).json({ error: "GHL connection not found for this location" });
+      }
+
+      const link = await customValuesService.getGoogleReviewLink(
+        tokenData.access_token,
+        locationId
+      );
+
+      if (!link) {
+        return res.json({
+          message: "No Google Review link found. Please add one via POST /reviews/set-link",
+          link: null
+        });
+      }
+
+      res.json({ link });
+    } catch (error) {
+      console.error("Error getting review link:", error);
+      res.status(500).json({ 
+        error: "Failed to fetch review link",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

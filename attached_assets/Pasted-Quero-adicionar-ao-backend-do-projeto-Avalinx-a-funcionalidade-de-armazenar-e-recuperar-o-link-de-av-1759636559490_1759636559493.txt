@@ -1,0 +1,244 @@
+Quero adicionar ao backend do projeto Avalinx a funcionalidade de armazenar e recuperar o link de avaliação do Google Meu Negócio (GMB) de cada conta GHL, usando o recurso de Custom Values do próprio GoHighLevel.
+
+Use o padrão de código que já está sendo usado (Express + Axios + modularização em /routes, /services, /utils).
+
+🎯 Objetivo
+
+O sistema deve:
+
+Permitir que o usuário cole o link de review manualmente (do tipo https://search.google.com/local/writereview?...).
+
+Salvar esse link dentro da conta GHL como um Custom Value com a chave AVALINX_GMB_REVIEW_LINK.
+
+Permitir ler o link salvo em chamadas futuras.
+
+(Opcional) Criar automaticamente o Custom Value, se ele não existir.
+
+📁 Arquitetura esperada
+src/
+├── routes/
+│   ├── reviews.js       ✅ novo ou atualizado
+├── services/
+│   ├── reviewLink.js    ✅ novo
+└── utils/
+    ├── tokens.js        (já existe)
+
+📦 Arquivo: src/services/reviewLink.js
+// src/services/reviewLink.js
+import axios from "axios";
+
+const GHL_BASE = "https://services.leadconnectorhq.com";
+const VERSION = "2021-07-28"; // mantenha compatível com suas outras chamadas
+
+function authHeaders(token) {
+  return {
+    Authorization: `Bearer ${token}`,
+    Version: VERSION,
+    "Content-Type": "application/json",
+  };
+}
+
+// 1. Buscar todos os custom values da location
+export async function getCustomValues({ accessToken, locationId }) {
+  const { data } = await axios.get(
+    `${GHL_BASE}/locations/${locationId}/customValues`,
+    { headers: authHeaders(accessToken) }
+  );
+  return data;
+}
+
+// 2. Criar novo custom value
+export async function createCustomValue({ accessToken, locationId, key, value }) {
+  const body = { key, value };
+  const { data } = await axios.post(
+    `${GHL_BASE}/locations/${locationId}/customValues`,
+    body,
+    { headers: authHeaders(accessToken) }
+  );
+  return data;
+}
+
+// 3. Atualizar custom value existente
+export async function updateCustomValue({ accessToken, locationId, id, key, value }) {
+  const body = { key, value };
+  const { data } = await axios.put(
+    `${GHL_BASE}/locations/${locationId}/customValues/${id}`,
+    body,
+    { headers: authHeaders(accessToken) }
+  );
+  return data;
+}
+
+// 4. Função central: salvar ou atualizar o link do Google
+export async function saveGoogleReviewLink({ accessToken, locationId, link }) {
+  const all = await getCustomValues({ accessToken, locationId });
+  const existing = all?.find(cv => cv.key === "AVALINX_GMB_REVIEW_LINK");
+
+  if (existing) {
+    const updated = await updateCustomValue({
+      accessToken,
+      locationId,
+      id: existing.id,
+      key: "AVALINX_GMB_REVIEW_LINK",
+      value: link,
+    });
+    return { updated: true, data: updated };
+  } else {
+    const created = await createCustomValue({
+      accessToken,
+      locationId,
+      key: "AVALINX_GMB_REVIEW_LINK",
+      value: link,
+    });
+    return { created: true, data: created };
+  }
+}
+
+// 5. Função central: buscar o link salvo
+export async function getGoogleReviewLink({ accessToken, locationId }) {
+  const all = await getCustomValues({ accessToken, locationId });
+  const existing = all?.find(cv => cv.key === "AVALINX_GMB_REVIEW_LINK");
+  return existing ? existing.value : null;
+}
+
+📦 Arquivo: src/routes/reviews.js
+// src/routes/reviews.js
+import express from "express";
+import { getToken } from "../utils/tokens.js";
+import {
+  saveGoogleReviewLink,
+  getGoogleReviewLink,
+} from "../services/reviewLink.js";
+
+const router = express.Router();
+
+/**
+ * POST /reviews/set-link
+ * Recebe um link de avaliação (Google Meu Negócio)
+ * e salva como Custom Value no GHL
+ */
+router.post("/set-link", async (req, res) => {
+  try {
+    const { locationId, link } = req.body;
+    if (!locationId || !link) {
+      return res.status(400).json({ error: "locationId and link are required" });
+    }
+
+    const tokenData = getToken(locationId);
+    if (!tokenData?.access_token) {
+      return res.status(401).json({ error: "GHL connection not found" });
+    }
+
+    const result = await saveGoogleReviewLink({
+      accessToken: tokenData.access_token,
+      locationId,
+      link,
+    });
+
+    res.json({
+      message: "Google Review link saved successfully.",
+      result,
+    });
+  } catch (err) {
+    console.error("Error saving review link:", err?.response?.data || err);
+    res.status(500).json({ error: "Failed to save review link" });
+  }
+});
+
+/**
+ * GET /reviews/get-link?locationId=xxxx
+ * Retorna o link de avaliação salvo (Custom Value)
+ */
+router.get("/get-link", async (req, res) => {
+  try {
+    const { locationId } = req.query;
+    if (!locationId) {
+      return res.status(400).json({ error: "locationId is required" });
+    }
+
+    const tokenData = getToken(locationId);
+    if (!tokenData?.access_token) {
+      return res.status(401).json({ error: "GHL connection not found" });
+    }
+
+    const link = await getGoogleReviewLink({
+      accessToken: tokenData.access_token,
+      locationId,
+    });
+
+    if (!link) {
+      return res.json({
+        message: "No Google Review link found. Please add one via /reviews/set-link",
+        link: null,
+      });
+    }
+
+    res.json({ link });
+  } catch (err) {
+    console.error("Error getting review link:", err?.response?.data || err);
+    res.status(500).json({ error: "Failed to fetch review link" });
+  }
+});
+
+export default router;
+
+📦 Atualize o src/server.js
+
+Adicione a nova rota:
+
+import reviewsRoutes from "./routes/reviews.js";
+app.use("/reviews", reviewsRoutes);
+
+🧪 Testes no Postman / Insomnia / Replit
+➕ Salvar o link
+POST /reviews/set-link
+Content-Type: application/json
+
+{
+  "locationId": "xiXPfRT3hyJMAdmwxc0T",
+  "link": "https://search.google.com/local/writereview?placeid=ChIJJXWz-cSt0lYRga4cJoJ_le4"
+}
+
+
+✅ Retorno esperado:
+
+{
+  "message": "Google Review link saved successfully.",
+  "result": { "created": true, "data": { ... } }
+}
+
+📤 Buscar o link salvo
+GET /reviews/get-link?locationId=xiXPfRT3hyJMAdmwxc0T
+
+
+✅ Retorno esperado:
+
+{
+  "link": "https://search.google.com/local/writereview?placeid=ChIJJXWz-cSt0lYRga4cJoJ_le4"
+}
+
+💡 Como isso se encaixa no fluxo do Avalinx
+
+Quando o usuário conectar o GHL, o Avalinx verifica se o Custom Value AVALINX_GMB_REVIEW_LINK existe.
+
+Se não existir, exibe instruções:
+
+“Acesse o painel do GHL → Reputation → Settings → Review Link, copie o link e cole abaixo.”
+
+O usuário cola o link → chama POST /reviews/set-link.
+
+A partir daí, tudo o que o Avalinx fizer (NFC, QR, review gate, placar) usará esse link via GET /reviews/get-link.
+
+✅ Resultado esperado (fim da Etapa 2A)
+
+O Avalinx agora armazena e lê o link oficial de avaliações diretamente dentro do GHL.
+
+Tudo fica sincronizado com a conta do cliente (sem duplicar dados).
+
+Essa base será usada para:
+
+Gerar os links rastreáveis (me-avalie.link),
+
+Criar o placar de funcionários,
+
+Fazer o review gate no futuro.
