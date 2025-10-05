@@ -3,8 +3,10 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { ghlService } from "./services/ghl";
 import { customValuesService } from "./services/customValues";
+import { createLinkForEmployee, listEmployeeLinks, trackEmployeeClick } from "./services/reviewLinks";
+import { getEmployeeLinkById } from "./utils/db";
 import { saveToken, getToken, getAllTokens, deleteToken } from "./utils/tokens";
-import { authCallbackResponseSchema, apiStatusSchema, ghlTokenSchema } from "@shared/schema";
+import { authCallbackResponseSchema, apiStatusSchema, ghlTokenSchema, createEmployeeLinkSchema } from "@shared/schema";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Health check endpoint
@@ -221,6 +223,83 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: "Failed to fetch review link",
         details: error instanceof Error ? error.message : "Unknown error"
       });
+    }
+  });
+
+  // ========== Employee Links Routes ==========
+
+  /**
+   * POST /employee-links/create
+   * Create a new review link for an employee
+   */
+  app.post("/employee-links/create", async (req, res) => {
+    try {
+      const validatedData = createEmployeeLinkSchema.parse(req.body);
+      const { employeeName, locationId } = validatedData;
+
+      const tokenData = await getToken(locationId);
+      if (!tokenData?.access_token) {
+        return res.status(401).json({ error: "GHL connection not found for this location" });
+      }
+
+      const link = await createLinkForEmployee({
+        accessToken: tokenData.access_token,
+        locationId,
+        employeeName,
+      });
+
+      res.json({ 
+        message: "Employee link created successfully",
+        link 
+      });
+    } catch (error) {
+      console.error("Error creating employee link:", error);
+      res.status(500).json({ 
+        error: "Failed to create employee link",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  /**
+   * GET /employee-links/list
+   * List all employee review links
+   */
+  app.get("/employee-links/list", async (req, res) => {
+    try {
+      const links = listEmployeeLinks();
+      res.json(links);
+    } catch (error) {
+      console.error("Error listing employee links:", error);
+      res.status(500).json({ 
+        error: "Failed to list employee links",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+
+  /**
+   * GET /employee-links/go/:id
+   * Redirect to the Google Review link and track the click
+   */
+  app.get("/employee-links/go/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      
+      const link = getEmployeeLinkById(id);
+      if (!link) {
+        return res.status(404).send("Link not found");
+      }
+
+      // Track the click
+      trackEmployeeClick(id);
+      console.log(`Click tracked for employee: ${link.employeeName} (${link.clicks + 1} total clicks)`);
+
+      // Redirect to the destination
+      res.redirect(link.destination);
+    } catch (error) {
+      console.error("Error redirecting employee link:", error);
+      res.status(500).send("Error processing link");
     }
   });
 
