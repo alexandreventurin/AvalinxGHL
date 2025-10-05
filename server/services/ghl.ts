@@ -26,7 +26,7 @@ class GHLService {
       response_type: 'code',
       client_id: this.clientId,
       redirect_uri: this.redirectUri,
-      scope: 'locations.readonly contacts.readonly'
+      scope: 'locations.readonly locations.write contacts.readonly locations/customValues.write locations/customValues.readonly'
     });
 
     return `${this.authUrl}?${params.toString()}`;
