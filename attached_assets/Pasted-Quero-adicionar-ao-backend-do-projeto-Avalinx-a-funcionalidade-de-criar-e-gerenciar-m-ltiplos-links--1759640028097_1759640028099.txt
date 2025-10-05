@@ -1,0 +1,241 @@
+Quero adicionar ao backend do projeto Avalinx a funcionalidade de criar e gerenciar múltiplos links de avaliação para funcionários.
+Cada link será baseado no link de avaliação principal já salvo como Custom Value (AVALINX_GMB_REVIEW_LINK) na conta GHL.
+
+A lógica deve funcionar assim:
+
+Pegar o link principal salvo no GHL.
+
+Criar links derivados — um por funcionário.
+
+Armazenar temporariamente em memória (simulação de banco).
+
+Listar todos os links criados.
+
+Permitir redirecionar e registrar cliques.
+
+No futuro, os links serão hospedados em domínio externo (me-avalie.link), mas por agora usar uma URL interna do Replit (ex: https://avalinx.repl.co).
+
+📁 Nova estrutura de arquivos
+src/
+├── routes/
+│   ├── reviewLinks.js
+├── services/
+│   ├── reviewLinks.js
+└── utils/
+    ├── db.js
+
+📦 Arquivo: utils/db.js
+// utils/db.js
+// Simulação de banco de dados em memória
+
+export const employeeLinks = new Map(); // id -> dados do link
+
+export function createEmployeeLink({ employeeName, locationId, destination }) {
+  const id = Math.random().toString(36).substring(2, 8);
+  const newLink = {
+    id,
+    employeeName,
+    locationId,
+    destination,
+    clicks: 0,
+    createdAt: new Date(),
+  };
+  employeeLinks.set(id, newLink);
+  return newLink;
+}
+
+export function getAllEmployeeLinks() {
+  return Array.from(employeeLinks.values());
+}
+
+export function registerClick(id) {
+  const link = employeeLinks.get(id);
+  if (link) {
+    link.clicks++;
+  }
+  return link;
+}
+
+📦 Arquivo: services/reviewLinks.js
+// services/reviewLinks.js
+import { createEmployeeLink, getAllEmployeeLinks, registerClick } from "../utils/db.js";
+import { getGoogleReviewLink } from "./reviewLink.js";
+
+const BASE_REDIRECT_DOMAIN = process.env.BASE_REDIRECT_DOMAIN || "https://avalinx.repl.co"; 
+// ⚠️ depois será "https://me-avalie.link"
+
+export async function createLinkForEmployee({ accessToken, locationId, employeeName }) {
+  // 1️⃣ Busca o link principal salvo no GHL (Custom Value)
+  const destination = await getGoogleReviewLink({ accessToken, locationId });
+  if (!destination) {
+    throw new Error("Google Review link not found for this location.");
+  }
+
+  // 2️⃣ Cria o link derivado
+  const newLink = createEmployeeLink({
+    employeeName,
+    locationId,
+    destination,
+  });
+
+  // 3️⃣ Monta a URL final
+  return {
+    ...newLink,
+    shortUrl: `${BASE_REDIRECT_DOMAIN}/employee-links/go/${newLink.id}`,
+  };
+}
+
+export function listEmployeeLinks() {
+  return getAllEmployeeLinks();
+}
+
+export function trackEmployeeClick(id) {
+  return registerClick(id);
+}
+
+📦 Arquivo: routes/reviewLinks.js
+// routes/reviewLinks.js
+import express from "express";
+import { getToken } from "../utils/tokens.js";
+import { createLinkForEmployee, listEmployeeLinks, trackEmployeeClick } from "../services/reviewLinks.js";
+
+const router = express.Router();
+
+/**
+ * POST /employee-links/create
+ * Cria um novo link de avaliação para um funcionário.
+ */
+router.post("/create", async (req, res) => {
+  try {
+    const { employeeName, locationId } = req.body;
+    if (!employeeName || !locationId) {
+      return res.status(400).json({ error: "employeeName and locationId required" });
+    }
+
+    const tokenData = getToken(locationId);
+    if (!tokenData?.access_token) {
+      return res.status(401).json({ error: "GHL connection not found" });
+    }
+
+    const link = await createLinkForEmployee({
+      accessToken: tokenData.access_token,
+      locationId,
+      employeeName,
+    });
+
+    res.json({ message: "Employee link created successfully.", link });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to create link", details: err.message });
+  }
+});
+
+/**
+ * GET /employee-links/list
+ * Lista todos os links de funcionários criados.
+ */
+router.get("/list", (req, res) => {
+  res.json(listEmployeeLinks());
+});
+
+/**
+ * GET /employee-links/go/:id
+ * Redireciona para o link de review original e registra clique.
+ */
+router.get("/go/:id", (req, res) => {
+  const { id } = req.params;
+  const link = trackEmployeeClick(id);
+  if (link) {
+    res.redirect(link.destination);
+  } else {
+    res.status(404).send("Link not found");
+  }
+});
+
+export default router;
+
+📦 Atualize o src/server.js
+
+Adicione o novo módulo:
+
+import reviewLinksRoutes from "./routes/reviewLinks.js";
+app.use("/employee-links", reviewLinksRoutes);
+
+⚙️ Variável de ambiente opcional
+
+Adicione no .env do Replit (ou Railway futuramente):
+
+BASE_REDIRECT_DOMAIN=https://avalinx.repl.co
+
+
+👉 Esse domínio base servirá para gerar os links curtos.
+Mais tarde, basta trocar para https://me-avalie.link.
+
+🧪 Testes práticos
+1️⃣ Criar link de funcionário
+POST /employee-links/create
+Content-Type: application/json
+{
+  "employeeName": "Paulo",
+  "locationId": "xiXPfRT3hyJMAdmwxc0T"
+}
+
+
+✅ Esperado:
+
+{
+  "message": "Employee link created successfully.",
+  "link": {
+    "id": "x2p9kz",
+    "employeeName": "Paulo",
+    "shortUrl": "https://avalinx.repl.co/employee-links/go/x2p9kz",
+    "destination": "https://search.google.com/local/writereview?placeid=..."
+  }
+}
+
+2️⃣ Listar todos os links
+GET /employee-links/list
+
+
+✅ Esperado:
+
+[
+  {
+    "id": "x2p9kz",
+    "employeeName": "Paulo",
+    "clicks": 0,
+    "shortUrl": "https://avalinx.repl.co/employee-links/go/x2p9kz",
+    "destination": "..."
+  }
+]
+
+3️⃣ Testar redirecionamento (clique simulado)
+GET /employee-links/go/x2p9kz
+
+
+✅ Redireciona pro link do Google Review
+✅ Incrementa contador de cliques
+
+💡 Funcionamento interno
+
+Cada link de funcionário usa o mesmo link principal (GHL → Custom Value).
+
+O redirecionamento é controlado por você (no Replit agora, no me-avalie.link depois).
+
+O tracking (cliques, datas, nomes) está pronto para ser migrado para banco real.
+
+✅ Resultado esperado (Etapa 2B)
+
+Criar múltiplos links de avaliação (um por funcionário).
+
+Listar e acompanhar os cliques.
+
+Redirecionar automaticamente para o link do Google Review.
+
+Estrutura já compatível com whitelabel e tracking futuro.
+
+Resumo do Prompt:
+
+Crie as pastas e arquivos conforme descrito.
+Após colar o código, rode o projeto no Replit e teste os endpoints /employee-links/create, /employee-links/list e /employee-links/go/:id.
+Os links serão criados e redirecionarão para o Google Meu Negócio vinculado ao GHL.
