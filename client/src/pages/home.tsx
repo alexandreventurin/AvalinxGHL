@@ -164,15 +164,27 @@ export default function Home() {
                   </div>
                   <ExternalLink className="w-6 h-6 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 text-center">
-                    <div className="w-12 h-12 mx-auto mb-2 rounded-lg bg-muted border border-border flex items-center justify-center">
-                      <Shield className="w-6 h-6 text-muted-foreground" />
+                    <div className={`w-12 h-12 mx-auto mb-2 rounded-lg flex items-center justify-center ${
+                      isConnected 
+                        ? 'bg-accent/10 border border-accent/20' 
+                        : 'bg-muted border border-border'
+                    }`}>
+                      <Shield className={`w-6 h-6 ${
+                        isConnected ? 'text-accent' : 'text-muted-foreground'
+                      }`} />
                     </div>
                     <p className="text-xs font-medium text-muted-foreground">User Consent</p>
                   </div>
                   <ExternalLink className="w-6 h-6 text-muted-foreground flex-shrink-0" />
                   <div className="flex-1 text-center">
-                    <div className="w-12 h-12 mx-auto mb-2 rounded-lg bg-muted border border-border flex items-center justify-center">
-                      <RefreshCw className="w-6 h-6 text-muted-foreground" />
+                    <div className={`w-12 h-12 mx-auto mb-2 rounded-lg flex items-center justify-center ${
+                      isConnected 
+                        ? 'bg-accent/10 border border-accent/20' 
+                        : 'bg-muted border border-border'
+                    }`}>
+                      <RefreshCw className={`w-6 h-6 ${
+                        isConnected ? 'text-accent' : 'text-muted-foreground'
+                      }`} />
                     </div>
                     <p className="text-xs font-medium text-muted-foreground">Get Token</p>
                   </div>
