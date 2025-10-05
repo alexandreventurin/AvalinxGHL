@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save, CheckCircle, Users, Copy, Eye } from "lucide-react";
+import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save, CheckCircle, Users, Copy, Eye, AlertCircle } from "lucide-react";
 import { useState } from "react";
 
 interface ApiStatus {
@@ -95,10 +95,12 @@ export default function Home() {
   const [reviewLink, setReviewLink] = useState("");
 
   // Query to get current review link
-  const { data: reviewLinkData, refetch: refetchReviewLink } = useQuery<{ link: string | null }>({
+  const { data: reviewLinkData, refetch: refetchReviewLink, error: reviewLinkError } = useQuery<{ link: string | null }>({
     queryKey: ['/reviews/get-link', accountData?.locationId],
     enabled: !!accountData?.locationId,
     retry: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: false,
   });
 
   // Mutation to save review link
@@ -107,21 +109,32 @@ export default function Home() {
       locationId: accountData?.locationId,
       link,
     }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/reviews/get-link', accountData?.locationId] });
-      refetchReviewLink();
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ['/reviews/get-link', accountData?.locationId] });
+      await refetchReviewLink();
       toast({
-        title: "Review Link Saved",
-        description: "Google Review link has been saved successfully",
+        title: "✅ Link Salvo!",
+        description: "Google Review link configurado com sucesso",
       });
       setReviewLink("");
     },
     onError: (error) => {
-      toast({
-        title: "Save Failed",
-        description: error.message,
-        variant: "destructive",
-      });
+      // Se o erro for "já existe", recarregar a query para mostrar o link
+      if (error.message.includes("already exists")) {
+        queryClient.invalidateQueries({ queryKey: ['/reviews/get-link', accountData?.locationId] });
+        refetchReviewLink();
+        toast({
+          title: "✅ Link Já Configurado",
+          description: "Este link já estava salvo anteriormente",
+        });
+        setReviewLink("");
+      } else {
+        toast({
+          title: "Erro ao Salvar",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -459,6 +472,15 @@ export default function Home() {
 
                 {/* Google Review Link Configuration */}
                 <div className="bg-muted/30 border border-border rounded-lg p-5">
+                  {/* Connection Lost Warning */}
+                  {reviewLinkError && (
+                    <div className="mb-4 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
+                      <p className="text-sm text-yellow-600 dark:text-yellow-400 flex items-center">
+                        <AlertCircle className="w-4 h-4 mr-2" />
+                        Conexão perdida. Por favor, reconecte ao GoHighLevel.
+                      </p>
+                    </div>
+                  )}
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center space-x-2">
                       <Link2 className="w-5 h-5 text-primary" />

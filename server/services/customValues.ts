@@ -2,7 +2,8 @@ import axios from 'axios';
 
 interface CustomValue {
   id: string;
-  key: string;
+  key?: string;
+  name?: string;
   value: string;
   locationId: string;
 }
@@ -42,7 +43,9 @@ class CustomValuesService {
         { headers: this.authHeaders(accessToken) }
       );
 
-      return response.data.customValues || [];
+      const values = response.data.customValues || [];
+      console.log(`Retrieved ${values.length} custom values for location ${locationId}`);
+      return values;
     } catch (error) {
       console.error('Failed to get custom values:', error);
       if (axios.isAxiosError(error)) {
@@ -117,9 +120,13 @@ class CustomValuesService {
     link: string
   ): Promise<SaveResult> {
     const customValues = await this.getCustomValues(accessToken, locationId);
-    const existing = customValues.find(cv => cv.key === 'AVALINX_GMB_REVIEW_LINK');
+    // GHL API returns 'name' field, not 'key'
+    const existing = customValues.find(cv => 
+      (cv.key === 'AVALINX_GMB_REVIEW_LINK') || (cv.name === 'AVALINX_GMB_REVIEW_LINK')
+    );
 
     if (existing) {
+      console.log(`Updating existing custom value with ID: ${existing.id}`);
       const data = await this.updateCustomValue(
         accessToken,
         locationId,
@@ -129,6 +136,7 @@ class CustomValuesService {
       );
       return { updated: true, data };
     } else {
+      console.log('Creating new custom value');
       const data = await this.createCustomValue(
         accessToken,
         locationId,
@@ -147,7 +155,10 @@ class CustomValuesService {
     locationId: string
   ): Promise<string | null> {
     const customValues = await this.getCustomValues(accessToken, locationId);
-    const existing = customValues.find(cv => cv.key === 'AVALINX_GMB_REVIEW_LINK');
+    // GHL API returns 'name' field, not 'key'
+    const existing = customValues.find(cv => 
+      (cv.key === 'AVALINX_GMB_REVIEW_LINK') || (cv.name === 'AVALINX_GMB_REVIEW_LINK')
+    );
     return existing ? existing.value : null;
   }
 }
