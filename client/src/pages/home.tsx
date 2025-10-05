@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save } from "lucide-react";
+import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save, CheckCircle } from "lucide-react";
 import { useState } from "react";
 
 interface ApiStatus {
@@ -384,26 +384,40 @@ export default function Home() {
 
                 {/* Google Review Link Configuration */}
                 <div className="bg-muted/30 border border-border rounded-lg p-5">
-                  <div className="flex items-center space-x-2 mb-4">
-                    <Link2 className="w-5 h-5 text-primary" />
-                    <h4 className="text-sm font-semibold text-foreground">Google Review Link</h4>
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center space-x-2">
+                      <Link2 className="w-5 h-5 text-primary" />
+                      <h4 className="text-sm font-semibold text-foreground">Google Review Link</h4>
+                    </div>
+                    {reviewLinkData?.link && (
+                      <Badge variant="default" className="bg-accent text-accent-foreground">
+                        <CheckCircle className="w-3 h-3 mr-1" />
+                        Configurado
+                      </Badge>
+                    )}
                   </div>
                   
                   {reviewLinkData?.link ? (
-                    <div className="space-y-3">
-                      <div className="bg-background/50 border border-border rounded p-3">
-                        <p className="text-xs text-muted-foreground mb-1">Current Link</p>
-                        <code className="text-sm font-mono text-foreground break-all" data-testid="text-current-review-link">
-                          {reviewLinkData.link}
-                        </code>
+                    <div className="space-y-3 mb-4">
+                      <div className="bg-accent/10 border border-accent/30 rounded-lg p-4">
+                        <div className="flex items-start space-x-2 mb-2">
+                          <CheckCircle className="w-4 h-4 text-accent mt-0.5 flex-shrink-0" />
+                          <div className="flex-1">
+                            <p className="text-xs font-semibold text-accent mb-1">✅ Link Salvo com Sucesso!</p>
+                            <p className="text-xs text-muted-foreground mb-2">Seu link está configurado e pronto para uso:</p>
+                            <code className="text-sm font-mono text-foreground bg-background/80 px-3 py-2 rounded block break-all" data-testid="text-current-review-link">
+                              {reviewLinkData.link}
+                            </code>
+                          </div>
+                        </div>
                       </div>
                       <p className="text-xs text-muted-foreground">
-                        Update the link below to change your Google Review URL
+                        💡 Para atualizar, insira um novo link abaixo
                       </p>
                     </div>
                   ) : (
                     <p className="text-xs text-muted-foreground mb-3">
-                      Add your Google My Business review link to start collecting reviews
+                      ➕ Adicione seu link do Google Meu Negócio para começar a coletar avaliações
                     </p>
                   )}
                   
