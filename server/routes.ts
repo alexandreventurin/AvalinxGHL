@@ -52,14 +52,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       console.log(`Token saved for location: ${tokenData.locationId}`);
       
-      const response = {
-        connected: true,
-        locationId: tokenData.locationId,
-        access_token: tokenData.access_token.substring(0, 20) + "...", // Masked for security
-      };
-      
-      const validatedResponse = authCallbackResponseSchema.parse(response);
-      res.json(validatedResponse);
+      // Redirect back to home page after successful authentication
+      res.redirect("/");
     } catch (error) {
       console.error("OAuth callback error:", error);
       res.status(500).json({ 
@@ -99,7 +93,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get user data from GoHighLevel API
-      const userData = await ghlService.getUserData(tokenData.access_token);
+      const userData = await ghlService.getUserData(tokenData.access_token, locationId);
       
       // Save account info
       await storage.saveAccount(locationId, userData);

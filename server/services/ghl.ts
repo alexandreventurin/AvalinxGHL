@@ -70,27 +70,20 @@ class GHLService {
   /**
    * Get user data from GoHighLevel API
    */
-  async getUserData(accessToken: string): Promise<GhlAccount> {
+  async getUserData(accessToken: string, locationId: string): Promise<GhlAccount> {
     try {
-      // Try to get location data
-      const response = await axios.get(`${this.baseUrl}/locations/`, {
+      // Get specific location data by ID
+      const response = await axios.get(`${this.baseUrl}/locations/${locationId}`, {
         headers: {
           'Authorization': `Bearer ${accessToken}`,
           'Version': '2021-07-28'
         }
       });
 
-      let locationData;
-      if (response.data.locations && response.data.locations.length > 0) {
-        locationData = response.data.locations[0];
-      } else if (response.data.location) {
-        locationData = response.data.location;
-      } else {
-        locationData = response.data;
-      }
+      const locationData = response.data.location || response.data;
 
       const accountData = {
-        locationId: locationData.id || locationData.locationId || 'unknown',
+        locationId: locationData.id || locationId,
         companyId: locationData.companyId,
         name: locationData.name || locationData.businessName || 'Unknown Business',
         address: locationData.address,
