@@ -35,7 +35,29 @@ export const apiStatusSchema = z.object({
   timestamp: z.number(),
 });
 
+// Employee Review Link schema
+export const employeeLinkSchema = z.object({
+  id: z.string(),
+  employeeName: z.string(),
+  locationId: z.string(),
+  destination: z.string(),
+  clicks: z.number(),
+  createdAt: z.date(),
+});
+
+export const createEmployeeLinkSchema = z.object({
+  employeeName: z.string().min(1, "Employee name is required"),
+  locationId: z.string().min(1, "Location ID is required"),
+});
+
+export const employeeLinkResponseSchema = employeeLinkSchema.extend({
+  shortUrl: z.string(),
+});
+
 export type GhlToken = z.infer<typeof ghlTokenSchema>;
 export type GhlAccount = z.infer<typeof ghlAccountSchema>;
 export type AuthCallbackResponse = z.infer<typeof authCallbackResponseSchema>;
 export type ApiStatus = z.infer<typeof apiStatusSchema>;
+export type EmployeeLink = z.infer<typeof employeeLinkSchema>;
+export type CreateEmployeeLink = z.infer<typeof createEmployeeLinkSchema>;
+export type EmployeeLinkResponse = z.infer<typeof employeeLinkResponseSchema>;
