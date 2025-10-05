@@ -64,7 +64,7 @@ class CustomValuesService {
     try {
       const response = await axios.post<CustomValue>(
         `${this.baseUrl}/locations/${locationId}/customValues`,
-        { key, value },
+        { name: key, value },
         { headers: this.authHeaders(accessToken) }
       );
 
@@ -92,7 +92,7 @@ class CustomValuesService {
     try {
       const response = await axios.put<CustomValue>(
         `${this.baseUrl}/locations/${locationId}/customValues/${id}`,
-        { key, value },
+        { name: key, value },
         { headers: this.authHeaders(accessToken) }
       );
 
