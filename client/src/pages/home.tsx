@@ -2,9 +2,11 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe } from "lucide-react";
+import { Zap, Shield, RefreshCw, X, ExternalLink, Key, Clock, MapPin, Building, Globe, Link2, Save } from "lucide-react";
+import { useState } from "react";
 
 interface ApiStatus {
   status: string;
@@ -79,6 +81,40 @@ export default function Home() {
     },
   });
 
+  // Review link state and queries
+  const [reviewLink, setReviewLink] = useState("");
+
+  // Query to get current review link
+  const { data: reviewLinkData, refetch: refetchReviewLink } = useQuery<{ link: string | null }>({
+    queryKey: ['/reviews/get-link', accountData?.locationId],
+    enabled: !!accountData?.locationId,
+    retry: false,
+  });
+
+  // Mutation to save review link
+  const saveReviewLinkMutation = useMutation({
+    mutationFn: (link: string) => apiRequest("POST", "/reviews/set-link", {
+      locationId: accountData?.locationId,
+      link,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/reviews/get-link', accountData?.locationId] });
+      refetchReviewLink();
+      toast({
+        title: "Review Link Saved",
+        description: "Google Review link has been saved successfully",
+      });
+      setReviewLink("");
+    },
+    onError: (error) => {
+      toast({
+        title: "Save Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleConnectGHL = () => {
     window.location.href = '/auth/ghl';
   };
@@ -89,6 +125,18 @@ export default function Home() {
 
   const handleRefresh = () => {
     refreshMutation.mutate();
+  };
+
+  const handleSaveReviewLink = () => {
+    if (!reviewLink.trim()) {
+      toast({
+        title: "Invalid Link",
+        description: "Please enter a valid Google Review link",
+        variant: "destructive",
+      });
+      return;
+    }
+    saveReviewLinkMutation.mutate(reviewLink);
   };
 
   const isConnected = accountData?.connected === true;
@@ -312,7 +360,7 @@ export default function Home() {
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-3 mb-6">
                   <Button 
                     variant="secondary" 
                     onClick={handleRefresh}
@@ -332,6 +380,55 @@ export default function Home() {
                     <X className="w-4 h-4 mr-2" />
                     {disconnectMutation.isPending ? 'Disconnecting...' : 'Disconnect'}
                   </Button>
+                </div>
+
+                {/* Google Review Link Configuration */}
+                <div className="bg-muted/30 border border-border rounded-lg p-5">
+                  <div className="flex items-center space-x-2 mb-4">
+                    <Link2 className="w-5 h-5 text-primary" />
+                    <h4 className="text-sm font-semibold text-foreground">Google Review Link</h4>
+                  </div>
+                  
+                  {reviewLinkData?.link ? (
+                    <div className="space-y-3">
+                      <div className="bg-background/50 border border-border rounded p-3">
+                        <p className="text-xs text-muted-foreground mb-1">Current Link</p>
+                        <code className="text-sm font-mono text-foreground break-all" data-testid="text-current-review-link">
+                          {reviewLinkData.link}
+                        </code>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Update the link below to change your Google Review URL
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground mb-3">
+                      Add your Google My Business review link to start collecting reviews
+                    </p>
+                  )}
+                  
+                  <div className="flex items-center space-x-2 mt-4">
+                    <Input
+                      type="url"
+                      placeholder="https://search.google.com/local/writereview?placeid=..."
+                      value={reviewLink}
+                      onChange={(e) => setReviewLink(e.target.value)}
+                      className="flex-1"
+                      data-testid="input-review-link"
+                    />
+                    <Button
+                      onClick={handleSaveReviewLink}
+                      disabled={saveReviewLinkMutation.isPending || !reviewLink.trim()}
+                      data-testid="button-save-review-link"
+                    >
+                      <Save className="w-4 h-4 mr-2" />
+                      {saveReviewLinkMutation.isPending ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                  
+                  <p className="text-xs text-muted-foreground mt-3">
+                    💡 Find your review link in Google My Business → Get more reviews
+                  </p>
                 </div>
               </CardContent>
             </Card>
