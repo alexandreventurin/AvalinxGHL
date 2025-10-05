@@ -1,0 +1,182 @@
+Quero criar o MVP Etapa 1 do sistema Avalinx, que é um plugin para o GoHighLevel (GHL).
+O objetivo nesta etapa é apenas conectar o Avalinx ao GHL via OAuth2 e confirmar a conexão, sem nenhuma funcionalidade adicional.
+Siga as seguintes instruções cuidadosamente para construir o projeto com arquitetura limpa, boas práticas e estrutura pronta para crescer.
+
+🧱 Arquitetura geral
+
+Crie o projeto com a seguinte estrutura de diretórios:
+
+avalinx/
+├── backend/
+│   ├── package.json
+│   ├── .env.example
+│   ├── src/
+│   │   ├── server.js
+│   │   ├── routes/
+│   │   │   ├── auth.js
+│   │   └── services/
+│   │       └── ghl.js
+│   ├── utils/
+│   │   └── tokens.js
+│   └── README.md
+├── frontend/
+│   ├── README.md
+├── .gitignore
+└── README.md
+
+
+O frontend ainda não será desenvolvido — apenas reserve a pasta.
+
+⚙️ Configuração do backend
+
+Stack:
+
+Node.js 18+
+
+Express.js (ou Fastify)
+
+Nodemon (dev)
+
+Dotenv
+
+Axios (para requisições ao GHL)
+
+CORS
+
+Scripts em package.json:
+
+{
+  "name": "avalinx-backend",
+  "version": "0.0.1",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "axios": "^1.7.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}
+
+🔐 Variáveis de ambiente (.env.example)
+PORT=3000
+GHL_CLIENT_ID=coloque_aqui
+GHL_CLIENT_SECRET=coloque_aqui
+GHL_REDIRECT_URI=http://localhost:3000/auth/callback
+
+
+No Replit, você pode configurar essas variáveis em Secrets.
+Quando migrar para Railway, copie-as para o painel de “Environment Variables”.
+
+🔗 Rotas necessárias
+/auth/ghl
+
+Redireciona o usuário para o consentimento OAuth do GoHighLevel.
+
+Exemplo URL:
+
+https://marketplace.gohighlevel.com/oauth/chooselocation?response_type=code&redirect_uri=<redirect_uri>&client_id=<client_id>
+
+/auth/callback
+
+Recebe o code do GHL.
+
+Faz POST https://services.leadconnectorhq.com/oauth/token com client_id, client_secret, code e redirect_uri.
+
+Salva access_token, refresh_token e expires_in em memória (simule o DB).
+
+Retorna JSON:
+
+{
+  "connected": true,
+  "locationId": "xxxxx",
+  "access_token": "xxxxx"
+}
+
+/me
+
+Usa o access_token para chamar GET https://services.leadconnectorhq.com/locations
+(ou outro endpoint público) e confirma que o token está válido.
+
+Retorna informações básicas da conta GHL conectada.
+
+🧩 Estrutura de código sugerida
+src/server.js
+
+Configura Express, CORS, dotenv.
+
+Importa as rotas de routes/auth.js.
+
+Usa process.env.PORT || 3000.
+
+Endpoint raiz (/) retorna {status: "Avalinx API Online"}.
+
+src/routes/auth.js
+
+Define as rotas /auth/ghl, /auth/callback e /me.
+
+Chama funções do serviço services/ghl.js.
+
+src/services/ghl.js
+
+Contém as funções:
+
+getAuthUrl()
+
+exchangeCodeForToken(code)
+
+getUserData(accessToken)
+
+utils/tokens.js
+
+Armazena tokens em memória (objeto local).
+Exemplo:
+
+const tokens = new Map();
+export function saveToken(locationId, data) { tokens.set(locationId, data); }
+export function getToken(locationId) { return tokens.get(locationId); }
+
+🧠 Boas práticas que devem ser seguidas
+
+Usar try/catch com respostas JSON amigáveis.
+
+Nunca logar tokens completos no console.
+
+Configurar .gitignore com:
+
+node_modules
+.env
+
+
+Adicionar comentários explicando o fluxo OAuth.
+
+Incluir README.md com instruções de instalação:
+
+npm install
+npm run dev
+Acesse /auth/ghl para iniciar a conexão
+
+🧩 Resultado esperado (MVP Etapa 1)
+
+Após rodar:
+
+npm install
+npm run dev
+
+
+Você deve conseguir acessar:
+
+http://localhost:3000/auth/ghl → abrir o login do GoHighLevel
+
+Autorizar → redireciona para /auth/callback → salva tokens em memória
+
+GET /me → retorna dados básicos da conta GHL
+
+✅ Isso confirma que o Avalinx já conecta ao GHL com sucesso,
+pronto para na próxima etapa gerar links e placar.
