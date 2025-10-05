@@ -426,9 +426,54 @@ export default function Home() {
                     </Button>
                   </div>
                   
-                  <p className="text-xs text-muted-foreground mt-3">
-                    💡 Find your review link in Google My Business → Get more reviews
-                  </p>
+                  {/* Helper Links */}
+                  <div className="mt-4 pt-4 border-t border-border space-y-3">
+                    <p className="text-xs font-semibold text-foreground/90 mb-2">Como encontrar seu link:</p>
+                    
+                    <div className="space-y-2">
+                      <a
+                        href={`https://app.gohighlevel.com/v2/location/${accountData.locationId}/reputation/settings?tab=reviewRequestLink`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-background/50 border border-border rounded hover:bg-accent/10 hover:border-accent/20 transition-colors"
+                        data-testid="link-ghl-review-settings"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <ExternalLink className="w-4 h-4 text-primary" />
+                          <span className="text-xs font-medium text-foreground">
+                            1. Acessar Review Link no GHL
+                          </span>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">GMB Conectado</Badge>
+                      </a>
+                      
+                      <p className="text-xs text-muted-foreground pl-6">
+                        Se o Google Meu Negócio já estiver integrado, copie o link aqui
+                      </p>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <a
+                        href={`https://app.gohighlevel.com/v2/location/${accountData.locationId}/settings/integrations/list`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-between p-3 bg-background/50 border border-border rounded hover:bg-accent/10 hover:border-accent/20 transition-colors"
+                        data-testid="link-ghl-integrations"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <ExternalLink className="w-4 h-4 text-destructive" />
+                          <span className="text-xs font-medium text-foreground">
+                            2. Conectar Google Meu Negócio
+                          </span>
+                        </div>
+                        <Badge variant="destructive" className="text-xs">Se não conectado</Badge>
+                      </a>
+                      
+                      <p className="text-xs text-muted-foreground pl-6">
+                        Se ainda não conectou o GMB, conecte primeiro nas integrações
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
