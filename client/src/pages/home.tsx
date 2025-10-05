@@ -335,6 +335,7 @@ export default function Home() {
 
           {/* Connected State */}
           {isConnected && accountData && (
+            <>
             <Card className="border-accent/20 shadow-xl">
               <CardContent className="pt-6">
                 <div className="flex items-start justify-between mb-6">
@@ -678,6 +679,7 @@ export default function Home() {
                 </CardContent>
               </Card>
             )}
+            </>
           )}
 
           {/* API Endpoints Info */}
